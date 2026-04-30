@@ -1,6 +1,14 @@
 const MANGADEX_API = 'https://api.mangadex.org';
 const MANGADEX_COVERS = 'https://uploads.mangadex.org/covers';
 const DEFAULT_CONTENT_RATINGS = ['safe', 'suggestive'];
+const MANGADEX_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const TITLE_TYPE_API_SOURCES = {
+  all: MANGADEX_API,
+  manhwa: MANGADEX_API,
+  manga: MANGADEX_API,
+  manhua: MANGADEX_API,
+  webtoon: MANGADEX_API,
+};
 const TITLE_TYPE_LANGUAGES = {
   manhwa: ['ko'],
   manga: ['ja'],
@@ -16,6 +24,21 @@ function appendArrayParam(params, key, values) {
 function getLocalizedText(value, fallback = 'Unknown') {
   if (!value) return fallback;
   return value.en || value['ko-ro'] || value.ko || Object.values(value)[0] || fallback;
+}
+
+function getMangaDexIdFromQuery(query) {
+  const trimmedQuery = query.trim();
+  const directMatch = trimmedQuery.match(MANGADEX_ID_PATTERN);
+  if (directMatch) return directMatch[0];
+
+  try {
+    const url = new URL(trimmedQuery);
+    const titleIndex = url.pathname.split('/').findIndex((part) => part === 'title');
+    const id = titleIndex >= 0 ? url.pathname.split('/')[titleIndex + 1] : '';
+    return MANGADEX_ID_PATTERN.test(id) ? id : '';
+  } catch (error) {
+    return '';
+  }
 }
 
 function getRelationship(item, type) {
@@ -40,15 +63,34 @@ function getMangaDexStatus(status) {
   return 'reading';
 }
 
-async function requestMangaDex(path, params) {
+async function requestMangaDex(path, params, titleType = 'all') {
   const query = params ? `?${params.toString()}` : '';
-  const response = await fetch(`${MANGADEX_API}${path}${query}`);
+  const apiSource = TITLE_TYPE_API_SOURCES[titleType] || MANGADEX_API;
+  let response;
 
-  if (!response.ok) {
-    throw new Error(`MangaDex request failed with ${response.status}`);
+  try {
+    response = await fetch(`${apiSource}${path}${query}`);
+  } catch (error) {
+    const networkError = new Error('Could not connect to MangaDex. Check your internet connection, VPN, firewall, or DNS settings.');
+    networkError.userMessage = networkError.message;
+    throw networkError;
   }
 
-  return response.json();
+  if (!response.ok) {
+    const error = new Error(`MangaDex request failed with ${response.status}`);
+    if (response.status === 403) error.userMessage = 'MangaDex blocked this request. Try again later or disable VPN/proxy filtering.';
+    if (response.status === 429) error.userMessage = 'MangaDex rate limit reached. Wait a minute, then search again.';
+    if (response.status >= 500) error.userMessage = 'MangaDex is having server trouble. Try again later.';
+    throw error;
+  }
+
+  try {
+    return await response.json();
+  } catch (error) {
+    const parseError = new Error('MangaDex returned an unexpected response.');
+    parseError.userMessage = parseError.message;
+    throw parseError;
+  }
 }
 
 async function getMangaDexTags() {
@@ -62,6 +104,55 @@ async function getMangaDexTags() {
 async function getTagIdByName(name) {
   const tags = await getMangaDexTags();
   return tags.find((tag) => getLocalizedText(tag.attributes?.name, '').toLowerCase() === name.toLowerCase())?.id;
+}
+
+function buildMangaSearchParams(titleType) {
+  const params = new URLSearchParams({
+    limit: '12',
+    hasAvailableChapters: 'true',
+    'order[followedCount]': 'desc',
+    'order[relevance]': 'desc',
+  });
+
+  const originalLanguages = TITLE_TYPE_LANGUAGES[titleType] || [];
+  appendArrayParam(params, 'originalLanguage', originalLanguages);
+  params.append('availableTranslatedLanguage[]', 'en');
+  appendMangaIncludes(params);
+  appendArrayParam(params, 'contentRating', DEFAULT_CONTENT_RATINGS);
+  return params;
+}
+
+function buildMangaDetailParams() {
+  const params = new URLSearchParams();
+  appendMangaIncludes(params);
+  return params;
+}
+
+function appendMangaIncludes(params) {
+  params.append('includes[]', 'cover_art');
+  params.append('includes[]', 'author');
+  params.append('includes[]', 'artist');
+}
+
+async function enrichMangaDexTitle(manga) {
+  const latestChapter = await fetchLatestMangaDexChapter(manga.id).catch(() => 1);
+  const attributes = manga.attributes || {};
+
+  return {
+    id: manga.id,
+    title: getLocalizedText(attributes.title, 'Untitled title'),
+    author: getCreatorName(manga),
+    description: getLocalizedText(attributes.description, ''),
+    genres: (attributes.tags || [])
+      .map((tag) => getLocalizedText(tag.attributes?.name, ''))
+      .filter(Boolean)
+      .slice(0, 4),
+    latestChapter,
+    status: getMangaDexStatus(attributes.status),
+    coverUrl: getCoverUrl(manga),
+    updatedAt: attributes.updatedAt || attributes.createdAt || new Date().toISOString(),
+    sourceUrl: `https://mangadex.org/title/${manga.id}`,
+  };
 }
 
 export async function fetchLatestMangaDexChapter(mangaId, translatedLanguage = 'en') {
@@ -82,50 +173,22 @@ export async function fetchLatestMangaDexChapter(mangaId, translatedLanguage = '
 }
 
 export async function searchMangaDexTitles(query, titleType = 'all') {
-  const params = new URLSearchParams({
-    title: query,
-    limit: '12',
-    'order[followedCount]': 'desc',
-  });
+  const mangaDexId = getMangaDexIdFromQuery(query);
+  const params = buildMangaSearchParams(titleType);
 
-  const originalLanguages = TITLE_TYPE_LANGUAGES[titleType] || [];
-  appendArrayParam(params, 'originalLanguage', originalLanguages);
-  params.append('availableTranslatedLanguage[]', 'en');
-  params.append('includes[]', 'cover_art');
-  params.append('includes[]', 'author');
-  params.append('includes[]', 'artist');
-  appendArrayParam(params, 'contentRating', DEFAULT_CONTENT_RATINGS);
+  if (mangaDexId) {
+    const payload = await requestMangaDex(`/manga/${mangaDexId}`, buildMangaDetailParams(), titleType);
+    return payload.data ? [await enrichMangaDexTitle(payload.data)] : [];
+  }
+
+  params.set('title', query.trim());
 
   if (titleType === 'webtoon') {
     const longStripTagId = await getTagIdByName('Long Strip');
     if (longStripTagId) params.append('includedTags[]', longStripTagId);
   }
 
-  const payload = await requestMangaDex('/manga', params);
+  const payload = await requestMangaDex('/manga', params, titleType);
   const items = payload.data || [];
-
-  const results = await Promise.all(
-    items.map(async (manga) => {
-      const latestChapter = await fetchLatestMangaDexChapter(manga.id).catch(() => 1);
-      const attributes = manga.attributes || {};
-
-      return {
-        id: manga.id,
-        title: getLocalizedText(attributes.title, 'Untitled title'),
-        author: getCreatorName(manga),
-        description: getLocalizedText(attributes.description, ''),
-        genres: (attributes.tags || [])
-          .map((tag) => getLocalizedText(tag.attributes?.name, ''))
-          .filter(Boolean)
-          .slice(0, 4),
-        latestChapter,
-        status: getMangaDexStatus(attributes.status),
-        coverUrl: getCoverUrl(manga),
-        updatedAt: attributes.updatedAt || attributes.createdAt || new Date().toISOString(),
-        sourceUrl: `https://mangadex.org/title/${manga.id}`,
-      };
-    })
-  );
-
-  return results;
+  return Promise.all(items.map(enrichMangaDexTitle));
 }

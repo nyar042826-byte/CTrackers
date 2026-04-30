@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AppHeader } from '../components/AppHeader';
 import { Sidebar } from '../components/Sidebar';
 import { DashboardView } from '../features/dashboard/DashboardView';
@@ -10,14 +11,33 @@ import { useCTrackerStore } from '../stores/useCTrackerStore';
 
 export function CTrackerApp() {
   const store = useCTrackerStore();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  function handleViewChange(view) {
+    store.setActiveView(view);
+    setIsMenuOpen(false);
+  }
 
   return (
     <main className="app-shell">
-      <Sidebar activeView={store.activeView} onViewChange={store.setActiveView} />
+      <button
+        aria-label="Close menu"
+        className={isMenuOpen ? 'menu-backdrop open' : 'menu-backdrop'}
+        onClick={() => setIsMenuOpen(false)}
+        type="button"
+      />
+      <Sidebar
+        activeView={store.activeView}
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onViewChange={handleViewChange}
+      />
 
       <section className="content-panel">
         <AppHeader
+          isMenuOpen={isMenuOpen}
           theme={store.theme}
+          onMenuToggle={() => setIsMenuOpen((current) => !current)}
           onThemeToggle={() => store.setTheme(store.theme === 'dark' ? 'light' : 'dark')}
         />
 
@@ -54,10 +74,8 @@ export function CTrackerApp() {
             onSearchMangaDexTitles={store.searchMangaDexTitles}
             onSyncMangaDexTitles={store.syncMangaDexTitles}
             onSubmit={store.submitTitle}
-            query={store.query}
             setMangaDexQuery={store.setMangaDexQuery}
             setMangaDexType={store.setMangaDexType}
-            setQuery={store.setQuery}
             setSortBy={store.setSortBy}
             setStatusFilter={store.setStatusFilter}
             sortBy={store.sortBy}
@@ -91,12 +109,6 @@ export function CTrackerApp() {
             onExport={store.exportData}
             onImport={store.importData}
             onLoadSamples={store.loadSamples}
-            onPullSupabase={store.pullSupabaseLibrary}
-            onPushSupabase={store.pushSupabaseLibrary}
-            onSyncSupabase={store.syncSupabaseLibrary}
-            supabaseMessage={store.supabaseMessage}
-            supabaseOwnerKey={store.supabaseOwnerKey}
-            supabaseStatus={store.supabaseStatus}
           />
         )}
       </section>

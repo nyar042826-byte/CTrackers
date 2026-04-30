@@ -11,14 +11,9 @@ In the project directory, you can run:
 Runs the app in the development mode.\
 Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-## Supabase Backend
+## Persistence
 
-1. Copy `.env.example` to `.env.local`.
-2. Set `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_ANON_KEY`.
-3. Run `supabase_schema.sql` in the Supabase SQL editor.
-4. Restart `npm start`.
-
-Settings will show Supabase backend controls for pulling cloud data, pushing local data, and syncing Supabase to match the local library.
+CTracker runs as a local-only app. Your library is saved in this browser, and Settings includes JSON import/export tools for backups.
 
 The page will reload when you make changes.\
 You may also see any lint errors in the console.

@@ -106,6 +106,12 @@ label {
   padding: 1.2rem;
 }
 
+.menu-backdrop,
+.mobile-menu-close,
+.mobile-menu-toggle {
+  display: none;
+}
+
 .sidebar,
 .content-panel,
 .hero-panel,
@@ -136,6 +142,10 @@ label {
   display: flex;
   gap: 0.9rem;
   padding: 1rem;
+}
+
+.brand-card div {
+  min-width: 0;
 }
 
 .brand-mark {
@@ -312,6 +322,10 @@ label {
   margin: 1rem 0;
 }
 
+.library-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .checkbox-label {
   align-items: center;
   display: flex;
@@ -428,18 +442,6 @@ label {
   text-decoration: underline;
 }
 
-.mangadex-panel {
-  display: grid;
-  gap: 1rem;
-}
-
-.mangadex-search-form {
-  align-items: end;
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr) minmax(9rem, 12rem) auto;
-}
-
 .mangadex-results {
   display: grid;
   gap: 0.75rem;
@@ -554,19 +556,6 @@ button.danger {
   gap: 1rem;
 }
 
-.cloud-panel {
-  background: var(--panel-strong);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  display: grid;
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.cloud-panel h4 {
-  margin: 0 0 0.45rem;
-}
-
 @media (max-width: 1020px) {
   .app-shell,
   .library-layout {
@@ -592,16 +581,97 @@ button.danger {
     padding: 0.6rem;
   }
 
+  .app-shell,
+  .library-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .menu-backdrop {
+    background: rgba(0, 0, 0, 0.48);
+    border-radius: 0;
+    display: block;
+    inset: 0;
+    opacity: 0;
+    padding: 0;
+    pointer-events: none;
+    position: fixed;
+    transition: opacity 180ms ease;
+    z-index: 20;
+  }
+
+  .menu-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .menu-backdrop:hover {
+    filter: none;
+    transform: none;
+  }
+
+  .sidebar {
+    border-radius: 0 8px 8px 0;
+    bottom: 0;
+    left: 0;
+    overflow-y: auto;
+    position: fixed;
+    top: 0;
+    transform: translateX(calc(-100% - 1rem));
+    transition: transform 220ms ease;
+    width: min(19rem, 86vw);
+    z-index: 30;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .brand-card {
+    justify-content: space-between;
+  }
+
+  .mobile-menu-close,
+  .mobile-menu-toggle {
+    align-items: center;
+    aspect-ratio: 1;
+    background: var(--panel-strong);
+    color: var(--text);
+    display: inline-flex;
+    flex: 0 0 auto;
+    padding: 0;
+    width: 2.75rem;
+  }
+
+  .mobile-menu-close span {
+    font-size: 1.55rem;
+    line-height: 1;
+  }
+
+  .mobile-menu-toggle {
+    flex-direction: column;
+    margin-bottom: 0.2rem;
+  }
+
+  .mobile-menu-toggle span {
+    background: currentColor;
+    border-radius: 999px;
+    display: block;
+    height: 2px;
+    width: 1.1rem;
+  }
+
   .hero-panel {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .nav-list,
+  .nav-list {
+    grid-template-columns: 1fr;
+  }
+
   .view-grid,
   .dashboard-split,
   .filters,
-  .mangadex-search-form,
   .mangadex-result,
   .form-row,
   .tracker-row,
@@ -610,6 +680,6 @@ button.danger {
   }
 
   .nav-item {
-    justify-content: center;
+    justify-content: flex-start;
   }
 }

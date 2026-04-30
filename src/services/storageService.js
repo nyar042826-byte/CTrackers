@@ -1,4 +1,4 @@
-import { STORAGE_KEY, SUPABASE_OWNER_KEY, THEME_KEY } from '../app/config';
+import { STORAGE_KEY, THEME_KEY } from '../app/config';
 import { seedTitles } from '../types/title';
 
 export function loadTitles() {
@@ -20,13 +20,4 @@ export function loadTheme() {
 
 export function saveTheme(theme) {
   window.localStorage.setItem(THEME_KEY, theme);
-}
-
-export function loadSupabaseOwnerKey() {
-  const saved = window.localStorage.getItem(SUPABASE_OWNER_KEY);
-  if (saved) return saved;
-
-  const ownerKey = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  window.localStorage.setItem(SUPABASE_OWNER_KEY, ownerKey);
-  return ownerKey;
 }

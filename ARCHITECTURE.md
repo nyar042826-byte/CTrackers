@@ -13,9 +13,7 @@ CTracker is organized around a local-first React application shell with feature 
 
 ## Persistence
 
-The app stores reading-library data in `localStorage` under `ctracker.titles.v1`. Theme preference is stored separately under `ctracker.theme.v1`.
-
-Supabase can be enabled with `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_ANON_KEY`. When configured, the Settings view exposes pull, push, and sync actions against the `ctracker_titles` table. The app keeps a generated owner key in localStorage under `ctracker.supabase.owner.v1` so one browser profile can map to its cloud rows while the app remains usable offline.
+The app stores reading-library data in `localStorage` under `ctracker.titles.v1`. Theme preference is stored separately under `ctracker.theme.v1`. There is no remote account layer.
 
 ## PWA
 

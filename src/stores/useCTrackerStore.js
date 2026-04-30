@@ -1,13 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { blankTitleForm, seedTitles } from '../types/title';
 import { fetchLatestMangaDexChapter, searchMangaDexTitles as searchMangaDexTitlesApi } from '../services/mangadexService';
-import { loadSupabaseOwnerKey, loadTheme, loadTitles, saveTheme, saveTitles } from '../services/storageService';
-import {
-  isSupabaseConfigured,
-  loadSupabaseTitles,
-  saveSupabaseTitles,
-  syncSupabaseTitles,
-} from '../services/supabaseService';
+import { loadTheme, loadTitles, saveTheme, saveTitles } from '../services/storageService';
 import {
   calculateStats,
   createTitleId,
@@ -18,22 +12,13 @@ import {
 } from '../services/titleService';
 
 export function useCTrackerStore() {
-  const isSupabaseEnabled = isSupabaseConfigured();
-  const hasCheckedSupabaseRef = useRef(!isSupabaseEnabled);
   const [titles, setTitles] = useState(loadTitles);
-  const initialTitlesRef = useRef(titles);
   const [activeView, setActiveView] = useState('dashboard');
-  const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('updated');
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(blankTitleForm);
   const [theme, setTheme] = useState(loadTheme);
-  const [supabaseOwnerKey] = useState(loadSupabaseOwnerKey);
-  const [supabaseStatus, setSupabaseStatus] = useState(isSupabaseEnabled ? 'ready' : 'missing-config');
-  const [supabaseMessage, setSupabaseMessage] = useState(
-    isSupabaseEnabled ? 'Supabase is configured.' : 'Add Supabase env values to enable cloud sync.'
-  );
   const [mangaDexQuery, setMangaDexQuery] = useState('');
   const [mangaDexType, setMangaDexType] = useState('all');
   const [mangaDexResults, setMangaDexResults] = useState([]);
@@ -43,68 +28,12 @@ export function useCTrackerStore() {
 
   useEffect(() => {
     saveTitles(titles);
-
-    if (!isSupabaseEnabled || !hasCheckedSupabaseRef.current) return undefined;
-
-    setSupabaseStatus('syncing');
-    setSupabaseMessage('Saving live changes to Supabase...');
-
-    const timeoutId = window.setTimeout(() => {
-      syncSupabaseTitles(supabaseOwnerKey, titles)
-        .then(() => {
-          setSupabaseStatus('ready');
-          setSupabaseMessage(`Live synced ${titles.length} title${titles.length === 1 ? '' : 's'} to Supabase.`);
-        })
-        .catch(() => {
-          setSupabaseStatus('error');
-          setSupabaseMessage('Live Supabase sync failed. Check your connection and table policies.');
-        });
-    }, 800);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [isSupabaseEnabled, supabaseOwnerKey, titles]);
+  }, [titles]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     saveTheme(theme);
   }, [theme]);
-
-  useEffect(() => {
-    if (!isSupabaseEnabled) return undefined;
-
-    let isCurrent = true;
-    setSupabaseStatus('syncing');
-    setSupabaseMessage('Checking Supabase for saved library data...');
-
-    loadSupabaseTitles(supabaseOwnerKey)
-      .then((remoteTitles) => {
-        if (!isCurrent) return;
-        if (remoteTitles.length) {
-          setTitles(remoteTitles.filter((title) => title && title.title).map(normalizeImportedTitle));
-          setSupabaseMessage(`Loaded ${remoteTitles.length} title${remoteTitles.length === 1 ? '' : 's'} from Supabase.`);
-        } else {
-          syncSupabaseTitles(supabaseOwnerKey, initialTitlesRef.current)
-            .then(() => {
-              if (isCurrent) setSupabaseMessage('Supabase is connected. Local library was uploaded to cloud.');
-            })
-            .catch(() => {
-              if (isCurrent) setSupabaseMessage('Supabase is connected, but the initial local upload failed.');
-            });
-        }
-        hasCheckedSupabaseRef.current = true;
-        setSupabaseStatus('ready');
-      })
-      .catch(() => {
-        if (!isCurrent) return;
-        hasCheckedSupabaseRef.current = true;
-        setSupabaseStatus('error');
-        setSupabaseMessage('Supabase connection failed. Check your env values and table schema.');
-      });
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [isSupabaseEnabled, supabaseOwnerKey]);
 
   async function fetchMangaDexResults(searchQuery) {
     const trimmedQuery = searchQuery.trim();
@@ -124,7 +53,7 @@ export function useCTrackerStore() {
       setMangaDexResults(results);
     } catch (error) {
       setMangaDexResults([]);
-      setMangaDexError('MangaDex could not be reached. Check your connection and try again.');
+      setMangaDexError(error.userMessage || 'MangaDex could not be reached. Check your connection and try again.');
     } finally {
       setIsMangaDexSearching(false);
     }
@@ -149,10 +78,10 @@ export function useCTrackerStore() {
         .then((results) => {
           if (isCurrent) setMangaDexResults(results);
         })
-        .catch(() => {
+        .catch((error) => {
           if (isCurrent) {
             setMangaDexResults([]);
-            setMangaDexError('MangaDex could not be reached. Check your connection and try again.');
+            setMangaDexError(error.userMessage || 'MangaDex could not be reached. Check your connection and try again.');
           }
         })
         .finally(() => {
@@ -169,8 +98,8 @@ export function useCTrackerStore() {
   const stats = useMemo(() => calculateStats(titles), [titles]);
 
   const filteredTitles = useMemo(
-    () => filterAndSortTitles(titles, query, statusFilter, sortBy),
-    [query, sortBy, statusFilter, titles]
+    () => filterAndSortTitles(titles, '', statusFilter, sortBy),
+    [sortBy, statusFilter, titles]
   );
 
   const continueReading = useMemo(
@@ -307,19 +236,6 @@ export function useCTrackerStore() {
     });
     setMangaDexResults([]);
 
-    if (!isSupabaseEnabled) return;
-
-    setSupabaseStatus('syncing');
-    setSupabaseMessage(`Saving ${nextTitle.title} to Supabase...`);
-
-    try {
-      await saveSupabaseTitles(supabaseOwnerKey, [nextTitle]);
-      setSupabaseStatus('ready');
-      setSupabaseMessage(`${nextTitle.title} was saved to Supabase.`);
-    } catch (error) {
-      setSupabaseStatus('error');
-      setSupabaseMessage(`${nextTitle.title} was added locally, but Supabase save failed.`);
-    }
   }
 
   function searchMangaDexTitles(event) {
@@ -359,55 +275,6 @@ export function useCTrackerStore() {
       setMangaDexError('MangaDex sync failed. Try again in a moment.');
     } finally {
       setIsMangaDexSyncing(false);
-    }
-  }
-
-  async function pullSupabaseLibrary() {
-    if (!isSupabaseConfigured()) return;
-
-    setSupabaseStatus('syncing');
-    setSupabaseMessage('Pulling titles from Supabase...');
-
-    try {
-      const remoteTitles = await loadSupabaseTitles(supabaseOwnerKey);
-      setTitles(remoteTitles.filter((title) => title && title.title).map(normalizeImportedTitle));
-      setSupabaseStatus('ready');
-      setSupabaseMessage(`Pulled ${remoteTitles.length} title${remoteTitles.length === 1 ? '' : 's'} from Supabase.`);
-    } catch (error) {
-      setSupabaseStatus('error');
-      setSupabaseMessage('Could not pull from Supabase. Check your connection and table policies.');
-    }
-  }
-
-  async function pushSupabaseLibrary() {
-    if (!isSupabaseConfigured()) return;
-
-    setSupabaseStatus('syncing');
-    setSupabaseMessage('Pushing local titles to Supabase...');
-
-    try {
-      await saveSupabaseTitles(supabaseOwnerKey, titles);
-      setSupabaseStatus('ready');
-      setSupabaseMessage(`Pushed ${titles.length} title${titles.length === 1 ? '' : 's'} to Supabase.`);
-    } catch (error) {
-      setSupabaseStatus('error');
-      setSupabaseMessage('Could not push to Supabase. Check your connection and table policies.');
-    }
-  }
-
-  async function syncSupabaseLibrary() {
-    if (!isSupabaseConfigured()) return;
-
-    setSupabaseStatus('syncing');
-    setSupabaseMessage('Syncing local library to Supabase...');
-
-    try {
-      await syncSupabaseTitles(supabaseOwnerKey, titles);
-      setSupabaseStatus('ready');
-      setSupabaseMessage('Supabase now matches this local library.');
-    } catch (error) {
-      setSupabaseStatus('error');
-      setSupabaseMessage('Could not sync Supabase. Check your connection and table policies.');
     }
   }
 
@@ -455,14 +322,12 @@ export function useCTrackerStore() {
     mangaDexQuery,
     mangaDexResults,
     mangaDexType,
-    query,
     reminderTitles,
     removeTitle,
     resetForm,
     setActiveView,
     setMangaDexQuery,
     setMangaDexType,
-    setQuery,
     setSortBy,
     setStatusFilter,
     setTheme,
@@ -471,14 +336,8 @@ export function useCTrackerStore() {
     stats,
     statusFilter,
     submitTitle,
-    supabaseMessage,
-    supabaseOwnerKey,
-    supabaseStatus,
     searchMangaDexTitles,
     syncMangaDexTitles,
-    pullSupabaseLibrary,
-    pushSupabaseLibrary,
-    syncSupabaseLibrary,
     theme,
     titles,
     toggleFavorite,

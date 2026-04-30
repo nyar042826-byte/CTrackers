@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ctracker-shell-v1';
+const CACHE_NAME = 'ctracker-shell-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -17,6 +17,9 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const requestUrl = new URL(event.request.url);
+
+  if (requestUrl.origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
@@ -27,7 +30,10 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => caches.match('/index.html'));
+        .catch(() => {
+          if (event.request.mode === 'navigate') return caches.match('/index.html');
+          throw new Error('Network request failed');
+        });
     })
   );
 });
