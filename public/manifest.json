@@ -1,0 +1,29 @@
+{
+  "short_name": "CTracker",
+  "name": "CTracker - Manga and Manhwa Chapter Tracker",
+  "description": "A local-first manga, manhwa, manhua, and webtoon chapter tracker.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#ffb13b",
+  "background_color": "#11100d",
+  "categories": ["books", "entertainment", "productivity"]
+}

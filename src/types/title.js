@@ -1,0 +1,70 @@
+export const titleStatuses = ['reading', 'completed', 'paused', 'dropped', 'planned'];
+
+export const statusLabels = {
+  reading: 'Reading',
+  completed: 'Completed',
+  paused: 'Paused',
+  dropped: 'Dropped',
+  planned: 'Planned',
+};
+
+export const blankTitleForm = {
+  title: '',
+  author: '',
+  genres: '',
+  currentChapter: 0,
+  latestChapter: 1,
+  status: 'planned',
+  rating: 0,
+  notes: '',
+  reminder: '',
+  isFavorite: false,
+};
+
+export const seedTitles = [
+  {
+    id: 'solo-leveling',
+    title: 'Solo Leveling',
+    author: 'Chugong',
+    genres: ['Action', 'Fantasy', 'System'],
+    currentChapter: 148,
+    latestChapter: 200,
+    status: 'reading',
+    rating: 5,
+    notes: 'Weekend binge candidate.',
+    isFavorite: true,
+    reminder: 'Friday night',
+    updatedAt: '2026-04-28T08:00:00.000Z',
+    createdAt: '2026-04-20T08:00:00.000Z',
+  },
+  {
+    id: 'omniscient-reader',
+    title: "Omniscient Reader's Viewpoint",
+    author: 'Sing Shong',
+    genres: ['Drama', 'Fantasy', 'Webtoon'],
+    currentChapter: 94,
+    latestChapter: 207,
+    status: 'reading',
+    rating: 5,
+    notes: 'Keep an eye on update drops.',
+    isFavorite: true,
+    reminder: 'After school',
+    updatedAt: '2026-04-27T08:00:00.000Z',
+    createdAt: '2026-04-18T08:00:00.000Z',
+  },
+  {
+    id: 'witch-hat-atelier',
+    title: 'Witch Hat Atelier',
+    author: 'Kamome Shirahama',
+    genres: ['Adventure', 'Magic', 'Seinen'],
+    currentChapter: 35,
+    latestChapter: 80,
+    status: 'paused',
+    rating: 4,
+    notes: 'Beautiful panels, resume slowly.',
+    isFavorite: false,
+    reminder: '',
+    updatedAt: '2026-04-21T08:00:00.000Z',
+    createdAt: '2026-04-12T08:00:00.000Z',
+  },
+];
