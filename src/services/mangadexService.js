@@ -1,14 +1,8 @@
 const MANGADEX_API = 'https://api.mangadex.org';
 const MANGADEX_COVERS = 'https://uploads.mangadex.org/covers';
+const MANGADEX_PROXY = '/api/mangadex';
 const DEFAULT_CONTENT_RATINGS = ['safe', 'suggestive'];
 const MANGADEX_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const TITLE_TYPE_API_SOURCES = {
-  all: MANGADEX_API,
-  manhwa: MANGADEX_API,
-  manga: MANGADEX_API,
-  manhua: MANGADEX_API,
-  webtoon: MANGADEX_API,
-};
 const TITLE_TYPE_LANGUAGES = {
   manhwa: ['ko'],
   manga: ['ja'],
@@ -16,6 +10,15 @@ const TITLE_TYPE_LANGUAGES = {
 };
 
 let cachedTags;
+
+function getMangaDexApiUrl(path, query) {
+  const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+  if (isLocalHost) return `${MANGADEX_API}${path}${query}`;
+
+  const proxyParams = new URLSearchParams(query ? query.slice(1) : '');
+  proxyParams.set('path', path);
+  return `${MANGADEX_PROXY}?${proxyParams.toString()}`;
+}
 
 function appendArrayParam(params, key, values) {
   values.forEach((value) => params.append(`${key}[]`, value));
@@ -63,13 +66,12 @@ function getMangaDexStatus(status) {
   return 'reading';
 }
 
-async function requestMangaDex(path, params, titleType = 'all') {
+async function requestMangaDex(path, params) {
   const query = params ? `?${params.toString()}` : '';
-  const apiSource = TITLE_TYPE_API_SOURCES[titleType] || MANGADEX_API;
   let response;
 
   try {
-    response = await fetch(`${apiSource}${path}${query}`);
+    response = await fetch(getMangaDexApiUrl(path, query));
   } catch (error) {
     const networkError = new Error('Could not connect to MangaDex. Check your internet connection, VPN, firewall, or DNS settings.');
     networkError.userMessage = networkError.message;
@@ -177,7 +179,7 @@ export async function searchMangaDexTitles(query, titleType = 'all') {
   const params = buildMangaSearchParams(titleType);
 
   if (mangaDexId) {
-    const payload = await requestMangaDex(`/manga/${mangaDexId}`, buildMangaDetailParams(), titleType);
+    const payload = await requestMangaDex(`/manga/${mangaDexId}`, buildMangaDetailParams());
     return payload.data ? [await enrichMangaDexTitle(payload.data)] : [];
   }
 
